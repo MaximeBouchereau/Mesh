@@ -171,6 +171,8 @@ def Mesh_Oct(N_iter):
              (VERTC[5, :], VERTC[3, :], VERTC[4, :]), (VERTC[5, :], VERTC[4, :], VERTC[1, :])]
 
     # ITERATIONS
+    LIST_HIST_VERTC = [VERTC]
+    LIST_HIST_FACES = [FACES]
 
     for n in range(N_iter):
         print("n = " + str(n + 1) + " / " + str(N_iter), end="\r")
@@ -184,8 +186,10 @@ def Mesh_Oct(N_iter):
             VERTC_new = np.concatenate((VERTC_new, AB.reshape(1, 3), BC.reshape(1, 3), CA.reshape(1, 3)), axis=0)
         FACES = FACES_new
         VERTC = VERTC_new
+        LIST_HIST_VERTC.append(VERTC)
+        LIST_HIST_FACES.append(FACES)
 
-    return FACES, VERTC, N_iter
+    return FACES, VERTC, N_iter, LIST_HIST_VERTC, LIST_HIST_FACES
 
 def Mesh_Poisson(K, r_min):
     """Creates a mesh on unit sphere with Poisson Disk Sampling.
@@ -219,10 +223,6 @@ def Mesh_Poisson(K, r_min):
     VERTC = np.concatenate((VERTC, np.zeros((VERTC.shape[0], 1))), axis=1)
     
     print(" > Faces construction")
-    FACES = []
-    EDGES = []
-    EDGES_BOUND = []
-    X = list(VERTC[:, :3]) # REMAINING VERTICES
 
     # Proximity matrix between vertices
     ONES = np.ones((1, VERTC.shape[0]))
@@ -231,64 +231,15 @@ def Mesh_Poisson(K, r_min):
 
     np.fill_diagonal(NORM, 100)
 
-    # plt.imshow(NORM, cmap="gray"); plt.show()
-
-    # IS_CLOSE = (NORM < r_prox ** 2)
-    # np.fill_diagonal(IS_CLOSE, False)
-    # print(np.sum(IS_CLOSE[0, :]))
-
-    # INITIALIZATION: FIND FIRST TRIANGLE TO CONVEX HULL
-    # i0 = 0
-    # i0 = np.where(VERTC[:, 2] == np.min(VERTC[:, 2]))[0][0]
-    # VERTC[i0, 3] = 1
-    # u0 = VERTC[i0, :3]
-    # i1 = np.where(NORM[i0, :] == np.min(NORM[i0, :]))
-    # VERTC[i1, 3] = 1
-    # u1 = VERTC[i1, :3].squeeze()
-    # idx_free = np.where(VERTC[:, 3] == 0)[0]
-    # EDGES.append((u0, u1))
-    # EDGES_BOUND.append((u0, u1))
-    #
-    #
-    # Y = [x for x in X if not (np.allclose(x, u0) or np.allclose(x, u1))]
-    # Z = [x for x in X if not (np.allclose(x, u0) or np.allclose(x, u1))]
-    # u = Tools.Test_Convex(u0, u1, Y)
-    # FACES.append((u0, u1, u))
-    # EDGES_BOUND.append((u0, u))
-    # EDGES_BOUND.append((u1, u))
-    # Z = [x for x in Z if not np.allclose(x, u)]
-
-    # while (len(X) > 1 and len(EDGES_BOUND) < 10):
-    # while len(EDGES_BOUND) < 20:
-    #     print(len(EDGES_BOUND))
-    #     e = random.choice(EDGES_BOUND)
-    #     e0, e1 = e
-    #     Y = [x for x in X if not (np.allclose(x, e0) or np.allclose(x, e1))]
-    #     Z = [x for x in Z if not (np.allclose(x, e0) or np.allclose(x, e1))]
-    #     u = Tools.Test_Convex(e0, e1, Y)
-    #
-    #     Z = [x for x in Z if not (np.allclose(x, u))]
-    #     if not any(np.allclose(x, u) for x in Z):
-    #         u = Tools.Test_Convex(e0, e1, Y)
-    #
-    #
-    #     EDGES_BOUND = [x for x in EDGES_BOUND if not Tools.same_edge(e,x)]
-    #     # EDGES_BOUND.extend([(e0, u), (e1, u)])
-    #     for new_edge in [(e0, u), (e1, u)]:
-    #         if not any(Tools.same_edge(new_edge, e) for e in EDGES_BOUND):
-    #             EDGES_BOUND.append(new_edge)
-    #
-    #     if not any(Tools.same_face((e0, e1, u), f) for f in FACES):
-    #         FACES.append((e0, e1, u))
-    #     # print(len(FACES))
-
-
+    LIST_HIST_VERTC = [VERTC[:, :3]]
 
     ### INITIALIZATION: TETHRAEDRON
     X = list(VERTC[:, :3]) # List of vertices
     x0, x1, x2, x3 = X[0:4]
     FACES = [(x0, x1, x2), (x1, x2, x3), (x0, x2, x3), (x0, x1, x3)]
     FACES = [Tools.Orient_face(f) for f in FACES]
+
+    LIST_HIST_FACES = [FACES]
 
     X = [x for x in X if not (np.allclose(x, x0) or np.allclose(x, x1) or np.allclose(x, x2) or np.allclose(x, x3))]
     Y = [x0, x1, x2, x3]
@@ -299,13 +250,10 @@ def Mesh_Poisson(K, r_min):
         FACES_vis = []
         for f in FACES:
             Y_other = [y for y in Y if not (np.allclose(y, f[0]) or np.allclose(y, f[1]) or np.allclose(y, f[2]))]
-            # print([Tools.View_Face(x, f, y) for y in Y_other])
-            # if all(Tools.View_Face(x, f, y) for y in Y_other):
             y = random.choice(Y_other)
             if Tools.View_Face(x, f, y):
                 FACES_vis.append(f)
 
-        # print("f vis:", len(FACES_vis))
         # FIND HORIZON
         EDGES = []
 
@@ -333,60 +281,29 @@ def Mesh_Poisson(K, r_min):
             e0, e1 = e
             FACES.append(Tools.Orient_face((e0, e1, x)))
 
+        LIST_HIST_VERTC.append(LIST_HIST_VERTC[0])
+        LIST_HIST_FACES.append(FACES)
+
         X = [xx for xx in X if not np.allclose(xx, x)]
         Y.append(x)
 
         print(" > Remaining points:", len(X), "  ", end="\r")
-        # print("f:", len(FACES))
-
-    # for i2 in idx_free:
-    #     u2 = VERTC[i2, :3]
-    #     U = np.array([u0, u1, u2])
-    #     A = np.linalg.solve(U, -np.ones(3))
-    #     idx_free_new = idx_free[idx_free != i2]
-    #     H = VERTC[idx_free_new, :3] @ A.reshape(3, 1) + np.ones_like(idx_free_new)
-    #     # print(np.max(np.sign(H)) - np.min(np.sign(H)))
-    #     if np.max(np.sign(H)) - np.min(np.sign(H)) < 0.5:
-    #         idx_free = idx_free_new
-    #         FACES.append((u0, u1, u2))
-    #         EDGES += [(u1, u2), (u2, u0)]
-    #         VERTC[i1, 3] = 1
-    #         VERTC[i2, 3] = 1
-    #         # break
-    # while np.prod(VERTC[:, 3], axis=0) == 0:
-    #     u0 = VERTC[i0, :3]
-    #     i1 = np.where(NORM[i0, :] == np.min(NORM[i0, :]))
-    #     VERTC[i1, 3] = 1
-    #     u1 = VERTC[i1, :3]
-    #     idx_free = np.where(VERTC[:, 3] == 0)[0]
-    #     EDGES.append((u0, u1))
-    #     for i2 in list(idx_free):
-    #         u2 = VERTC[i2, :3]
-    #         U = np.array([u0, u1[0][0], u2])
-    #         A = np.linalg.solve(U, -np.ones(3))
-    #         idx_free_new = idx_free[idx_free != i2]
-    #         H =  VERTC[idx_free_new, :3] @ A.reshape(3,1) + np.ones_like(idx_free_new)
-    #         if np.max(np.sign(H)) - np.min(np.sign(H)) < 0.5:
-    #             idx_free = idx_free_new
-    #             # FACES.append((v0, v1, v2))
-    #             FACES.append((u0, u1, u2))
-    #             break
 
 
-    # FACES = [(VERTC[0, :3], VERTC[1, :3], VERTC[2, :3])]
-
-
-    return FACES, VERTC[:, :3], 1
+    return FACES, VERTC[:, :3], 1, LIST_HIST_VERTC, LIST_HIST_FACES
 
 def Plot(MESH):
     """Plots a mesh on a sphere.
     Inputs:
-    - MESH: Tuple of len 2 of the form (FACES, VERTC, N_iter) where:
-        > FACES: List of tuples (a_k,b_k,c_k) where a_k, b_k, c_k are arrayes of shape (3,) -  List of faces.
+    - MESH: Tuple of len 5 of the form (FACES, VERTC, N_iter, LIST_HIST_VERTC, LIST_HIST_FACES) where:
+        > FACES: List of tuples (a_k,b_k,c_k) where a_k, b_k, c_k are arrays of shape (3,) -  List of faces.
         > VERTC: Array of shape (N,3) - Array whom lines are coordinates of verticies.
-        > N_iter: Int - Number of iterations"""
+        > N_iter: Int - Number of iterations.
+        > LIST_HIST_VERTC: List of arrays of shape (N,3) - Evolution of verticies
+        > LIST_HIST_FACES: List of lists of (a_k,b_k,c_k) where a_k, b_k, c_k are arrays of shape (3,) - Evolution of faces.
+    """
 
-    FACES, VERTC, N_iter = MESH
+    FACES, VERTC, N_iter = MESH[:3]
 
     L = 1
 
@@ -429,6 +346,66 @@ def Plot(MESH):
     ax.set_aspect("equal")
     ax.grid()
     plt.show()
+
+    return None
+
+def Plot_Hist(MESH, name):
+    """Plot steps of process for construction of a mesh on a sphere.
+    Inputs:
+    - MESH: Tuple of len 5 of the form (FACES, VERTC, N_iter, LIST_HIST_VERTC, LIST_HIST_FACES) where:
+        > FACES: List of tuples (a_k,b_k,c_k) where a_k, b_k, c_k are arrays of shape (3,) -  List of faces.
+        > VERTC: Array of shape (N,3) - Array whom lines are coordinates of verticies.
+        > N_iter: Int - Number of iterations.
+        > LIST_HIST_VERTC: List of arrays of shape (N,3) - Evolution of verticies
+        > LIST_HIST_FACES: List of lists of (a_k,b_k,c_k) where a_k, b_k, c_k are arrays of shape (3,) - Evolution of faces.
+    - name: String - Name of plot
+    """
+
+    LIST_HIST_VERTC, LIST_HIST_FACES = MESH[3:5]
+
+    N_iter = len(LIST_HIST_VERTC)
+    L = 1
+
+    for k in range(len(LIST_HIST_VERTC)):
+        # EXTRACT POINTS AND FACES
+        VERTC = LIST_HIST_VERTC[k]
+        FACES = LIST_HIST_FACES[k]
+
+        # PLOT POINTS AND FACES
+        colors = np.random.randint(low=1, high=100, size=(VERTC.shape[0],))
+        colors = np.linspace(start=1, stop=100, num=VERTC.shape[0])
+
+        ax = plt.figure().add_subplot(projection='3d')
+
+        # SORT VERTICES AND PLOT
+        VERTC_sort = VERTC[VERTC[:, 2].argsort()]
+        xx, yy, zz = VERTC_sort[:, 0], VERTC_sort[:, 1], VERTC_sort[:, 2]
+        ax.scatter(xx, yy, zz, c=colors, depthshade=0, cmap="rainbow")
+
+        # SORT FACES AND PLOT
+        FACES_sort = sorted(FACES, key=lambda f: f[0][2])
+        values = np.linspace(0, 1, len(FACES_sort))  # One value per triangle
+        cmap = plt.cm.jet
+        colors = cmap(values)
+        poly = Poly3DCollection(FACES_sort, alpha=0.8)
+        poly.set_facecolor(colors)  # Face color
+        poly.set_edgecolor('black')  # Edge color
+        poly.set_linewidth(1)  # Edge thickness
+        ax.add_collection3d(poly)
+
+        # TITLE
+        ax.set_title("$N = $ " + str(k) + " / " + str(N_iter-1))
+
+        # AXES PARAMETERS
+        ax.set_xlabel("$x$")
+        ax.set_ylabel("$y$")
+        ax.set_zlabel("$z$")
+        ax.set_xlim(-L, L)
+        ax.set_ylim(-L, L)
+        ax.set_zlim(-L, L)
+        ax.set_aspect("equal")
+        ax.grid()
+        plt.show()
 
     return None
 
