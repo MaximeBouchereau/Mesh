@@ -349,7 +349,7 @@ def Plot(MESH):
 
     return None
 
-def Plot_Hist(MESH, name):
+def Plot_Hist(MESH, name = None):
     """Plot steps of process for construction of a mesh on a sphere.
     Inputs:
     - MESH: Tuple of len 5 of the form (FACES, VERTC, N_iter, LIST_HIST_VERTC, LIST_HIST_FACES) where:
@@ -358,7 +358,7 @@ def Plot_Hist(MESH, name):
         > N_iter: Int - Number of iterations.
         > LIST_HIST_VERTC: List of arrays of shape (N,3) - Evolution of verticies
         > LIST_HIST_FACES: List of lists of (a_k,b_k,c_k) where a_k, b_k, c_k are arrays of shape (3,) - Evolution of faces.
-    - name: String - Name of plot
+    - name: String - Name of plot. Default: None. If None, don't save the figures. Else, save frames with name and iteration number.
     """
 
     LIST_HIST_VERTC, LIST_HIST_FACES = MESH[3:5]
@@ -405,7 +405,10 @@ def Plot_Hist(MESH, name):
         ax.set_zlim(-L, L)
         ax.set_aspect("equal")
         ax.grid()
-        plt.show()
+        if name == None:
+            plt.show()
+        else:
+            plt.savefig(name + "_iteration_" + str(k) + "_of_" + str(N_iter-1) + ".png", dpi=1000)
 
     return None
 
